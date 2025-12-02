@@ -1,6 +1,7 @@
 #include <Stepper.h>
 #include <Arduino.h>
-#include <LiquidCrystal.h>
+//#include <LiquidCrystal.h>
+#include <LiquidCrystal_I2C.h>
 // Motor pin definitions:
 #define motorPin1  8      // IN1 on the ULN2003 driver
 #define motorPin2  9      // IN2 on the ULN2003 driver
@@ -10,28 +11,29 @@ const int stepsPerRevolution = 2048;
 int analogPin = A3;
 int sensore_volumetrico = 6;
 int sensore_porta_down = 7;
-int sensore_porta_down_2 = A2;
+int sensore_porta_down_2 = 12;
 int val =0;
 float voltage_tasmota=0;
-const int rs = 13, en = 12, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
-
 const int trigPin = A0; 
 const int echoPin = A1; 
 long duration;
 float distance;
+LiquidCrystal_I2C MyLCD(0x27, 16, 2);
 
 void setup() {
   Serial.begin(9600);
   pinMode(sensore_porta_down, INPUT);
   pinMode(sensore_volumetrico, INPUT); 
   pinMode(sensore_porta_down_2, INPUT_PULLUP);
-  lcd.begin(16, 2);
-  lcd.print("Ciao Panna");
-  //
   pinMode(trigPin, OUTPUT); // Trigger pin needs to be an output
   pinMode(echoPin, INPUT);  // Echo pin needs to be an input
   Serial.println("Ultrasonic Sensor Ready");
+
+  MyLCD.init();
+  MyLCD.backlight();
+  MyLCD.setCursor(0, 0);
+  MyLCD.print("Prova Seriale:");
+
 }
 void loop() {
   Serial.println("Loop..........."); 
@@ -39,11 +41,17 @@ void loop() {
 
   if (val == HIGH) {
       Serial.println("Porta Aperta"); 
+      MyLCD.setCursor(0, 0);
+      MyLCD.print("Porta up aperta");
+
   } 
   val = digitalRead(sensore_porta_down_2);
 
   if (val == HIGH) {
       Serial.println("Porta 2 Aperta"); 
+      MyLCD.setCursor(0, 0);
+      MyLCD.print("Porta down aperta");
+
   } 
   val = digitalRead(sensore_volumetrico);
   if (val == HIGH) {
@@ -76,8 +84,8 @@ void loop() {
      while ( voltage_tasmota > 1)  {
          Serial.println(voltage_tasmota); 
          Serial.println("avvio il motore stepper");
-         lcd.clear();
-         lcd.print("Avvio il motore");
+         MyLCD.setCursor(0, 0);
+         MyLCD.print("Avvio il motore.....");
          Stepper myStepper(stepsPerRevolution, motorPin1, motorPin3, motorPin2, motorPin4);
          myStepper.setSpeed(15);
          myStepper.step(300);
@@ -86,8 +94,8 @@ void loop() {
          Serial.println(voltage_tasmota); 
      }
      Serial.println("Spengo il motore stepper");
-     lcd.clear();
-     lcd.print("Spengo il motore");
+     MyLCD.setCursor(0, 0);
+     MyLCD.print("Spengo il motore.....");
      digitalWrite(motorPin1,LOW);
      digitalWrite(motorPin2,LOW);
      digitalWrite(motorPin3,LOW);
