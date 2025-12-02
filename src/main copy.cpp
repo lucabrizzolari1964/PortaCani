@@ -1,62 +1,91 @@
 #include <Stepper.h>
 #include <Arduino.h>
-//#include <LiquidCrystal.h>
 #include <LiquidCrystal_I2C.h>
-// Motor pin definitions:
-#define motorPin1  8      // IN1 on the ULN2003 driver
-#define motorPin2  9      // IN2 on the ULN2003 driver
-#define motorPin3  10     // IN3 on the ULN2003 driver
-#define motorPin4  11     // IN4 on the ULN2003 driver
+// pin per motore stepper
+#define motorPin1  8      // IN1 
+#define motorPin2  9      // IN2 
+#define motorPin3  10     // IN3 
+#define motorPin4  11     // IN4 
 const int stepsPerRevolution = 2048;
-int analogPin = A3;
+int ledRossoVol = 5;
+int ledBluUltr = 4;
+int TasmotaAnalogPin = A3;
 int sensore_volumetrico = 6;
-int sensore_porta_down = 7;
-int sensore_porta_down_2 = 12;
-int val =0;
+int sensore_porta_up_on = 7;
+int sensore_porta_down_on = 12;
 float voltage_tasmota=0;
 const int trigPin = A0; 
 const int echoPin = A1; 
-long duration;
-float distance;
+long durata;
+float distanza;
+//variabile di servizio
+int val =0;
 LiquidCrystal_I2C MyLCD(0x27, 16, 2);
 
-void setup() {
-  Serial.begin(9600);
-  pinMode(sensore_porta_down, INPUT);
-  pinMode(sensore_volumetrico, INPUT); 
-  pinMode(sensore_porta_down_2, INPUT_PULLUP);
-  pinMode(trigPin, OUTPUT); // Trigger pin needs to be an output
-  pinMode(echoPin, INPUT);  // Echo pin needs to be an input
-  Serial.println("Ultrasonic Sensor Ready");
-
-  MyLCD.init();
-  MyLCD.backlight();
-  MyLCD.setCursor(0, 0);
-  MyLCD.print("Prova Seriale:");
-
+void AccendiLedRossoVol(boolean fai){
+    digitalWrite(ledRossoVol,HIGH);
+    Serial.println("Accendo led rosso");
 }
-void loop() {
-  Serial.println("Loop..........."); 
-  val = digitalRead(sensore_porta_down);
 
+void SpegniLedRossoVol(boolean fai){
+    digitalWrite(ledRossoVol,LOW);
+    Serial.println("Spengo led rosso");
+}
+
+void AccendiLedBluUltr(boolean fai){
+    digitalWrite(ledBluUltr,HIGH);
+    Serial.println("Accendo led blu");
+}
+
+void SpegniLedBluUltr(boolean fai){
+    digitalWrite(ledBluUltr,LOW);
+    Serial.println("Spengo led blu");
+}
+boolean fsensore_porta_up_on()
+{
+  boolean risultato=false;
+  val = digitalRead(sensore_porta_up_on);
   if (val == HIGH) {
-      Serial.println("Porta Aperta"); 
-      MyLCD.setCursor(0, 0);
-      MyLCD.print("Porta up aperta");
+    risultato=true;
+    Serial.println("up porta on"); 
+    MyLCD.setCursor(0, 0);
+    MyLCD.print("Porta Aperta");
+  }
+  return risultato;
+}
 
-  } 
-  val = digitalRead(sensore_porta_down_2);
 
+boolean fsensore_porta_down_on()
+{
+  boolean risultato=false;
+  val = digitalRead(sensore_porta_down_on);
   if (val == HIGH) {
-      Serial.println("Porta 2 Aperta"); 
-      MyLCD.setCursor(0, 0);
-      MyLCD.print("Porta down aperta");
+    risultato=true;
+    Serial.println("down porta on"); 
+    MyLCD.setCursor(0, 0);
+    MyLCD.print("Porta Chiusa");
+  }
+  return risultato;
+}
 
-  } 
+boolean PresenzaInterna()
+{
+  boolean risultato=false;
   val = digitalRead(sensore_volumetrico);
   if (val == HIGH) {
-      Serial.println("Apri porta volumetrico attivo"); 
+      Serial.println("Presenza Interna ......."); 
+      risultato=true;
   } 
+  if (val == LOW) {
+      Serial.println("Nessuna Presenza Interna"); 
+      risultato=false;
+  } 
+  return risultato;
+}
+
+boolean PresenzaEsterna()
+{
+  boolean presente=false;
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
 
@@ -64,20 +93,70 @@ void loop() {
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
 
-  // Read the time it takes for the echo pulse to return
-  duration = pulseIn(echoPin, HIGH);
-
-  // Calculate the distance in centimeters
-  // Speed of sound = 343 m/s or 0.0343 cm/µs
+  durata = pulseIn(echoPin, HIGH); // in microsecondi
+  // velocità del suono = 343 m/s o 0.0343 cm/µs
   // Distance = (duration * speed of sound) / 2 (because the pulse travels there and back)
-  distance = duration * 0.0343 / 2;
+  distanza = durata * 0.0343 / 2;
 
   // Print the distance to the serial monitor
-  Serial.print("Distance: ");
-  Serial.print(distance);
+  Serial.print("Distanza: ");
+  Serial.print(distanza);
   Serial.println(" cm");
+  if (distanza < 20)
+     {
+      presente = true;
+      Serial.println("Presenza Esterna ....");
+     }
+     else
+     {
+      presente = false;
+      Serial.println("Nessuna Presenza Esterna");
+     }
+  return presente;
+} 
+void setup() {
+  Serial.begin(9600);
+  pinMode(sensore_porta_up_on, INPUT);
+  pinMode(sensore_volumetrico, INPUT); 
+  pinMode(sensore_porta_down_on, INPUT_PULLUP);
+  pinMode(trigPin, OUTPUT); // Trigger pin needs to be an output
+  pinMode(echoPin, INPUT);  // Echo pin needs to be an input
+  pinMode(ledRossoVol, OUTPUT);
+  MyLCD.init();
+  MyLCD.backlight();
+  MyLCD.setCursor(0, 0);
 
-  voltage_tasmota = analogRead(analogPin) * (3.3 / 1023.0);
+}
+void loop() {
+  if (fsensore_porta_up_on() == true)
+     {
+      Serial.println("Raggiunto fine corsa porta up..........................................................."); 
+     }
+
+  if (fsensore_porta_down_on() == true)
+     {
+      Serial.println("Raggiunto fine corsa porta down..........................................................."); 
+     }
+
+  if (PresenzaInterna() == true)
+     {
+      AccendiLedRossoVol(true);
+     }
+     else
+     {
+      SpegniLedRossoVol(true);
+
+     }
+  if (PresenzaEsterna() == true)
+     {
+      AccendiLedBluUltr(true);
+     }
+     else
+     {
+      SpegniLedBluUltr(true);
+     }
+  
+  voltage_tasmota = analogRead(TasmotaAnalogPin) * (3.3 / 1023.0);
   Serial.println(voltage_tasmota); 
 	if ( voltage_tasmota > 1) {
 	   Serial.println("Tasmota...................."); 
@@ -90,7 +169,7 @@ void loop() {
          myStepper.setSpeed(15);
          myStepper.step(300);
          delay(10);
-         voltage_tasmota= analogRead(analogPin) * (3.3 / 1023.0);
+         voltage_tasmota= analogRead(TasmotaAnalogPin) * (3.3 / 1023.0);
          Serial.println(voltage_tasmota); 
      }
      Serial.println("Spengo il motore stepper");
@@ -108,7 +187,7 @@ void loop() {
       delay(1000);
      }
   } 
-   
+
 
 
 
