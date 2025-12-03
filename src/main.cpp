@@ -18,10 +18,16 @@ const int trigPin = A0;
 const int echoPin = A1; 
 long durata;
 float distanza;
+boolean portaAperta=false;
 //variabile di servizio
 int val =0;
 LiquidCrystal_I2C MyLCD(0x27, 16, 2);
+Stepper myStepper(stepsPerRevolution, motorPin1, motorPin3, motorPin2, motorPin4);
 
+void ScriviLcd(String stampa){
+    MyLCD.setCursor(0, 0);
+    MyLCD.print(stampa);
+}
 void AccendiLedRossoVol(boolean fai){
     digitalWrite(ledRossoVol,HIGH);
     Serial.println("Accendo led rosso");
@@ -47,9 +53,8 @@ boolean fsensore_porta_up_on()
   val = digitalRead(sensore_porta_up_on);
   if (val == HIGH) {
     risultato=true;
-    Serial.println("up porta on"); 
-    MyLCD.setCursor(0, 0);
-    MyLCD.print("Porta Aperta");
+    Serial.println("up porta on......"); 
+    ScriviLcd("Porta up on......");
   }
   return risultato;
 }
@@ -61,9 +66,8 @@ boolean fsensore_porta_down_on()
   val = digitalRead(sensore_porta_down_on);
   if (val == HIGH) {
     risultato=true;
-    Serial.println("down porta on"); 
-    MyLCD.setCursor(0, 0);
-    MyLCD.print("Porta Chiusa");
+    Serial.println("down porta on..."); 
+    ScriviLcd("Porta down on...");
   }
   return risultato;
 }
@@ -114,6 +118,44 @@ boolean PresenzaEsterna()
      }
   return presente;
 } 
+
+boolean ComandoEsternoManuale()
+//quando via domotica viene dato il comando di acceso manuale
+{
+  boolean ritorno=false;
+  voltage_tasmota = analogRead(TasmotaAnalogPin) * (3.3 / 1023.0);
+  Serial.print("Voltaggio da esp01 "); 
+  Serial.println(voltage_tasmota); 
+	if ( voltage_tasmota > 1) {
+	   Serial.println("Arrivato segnale di comando manuale porta aperta");
+     ritorno=true;
+  } 
+  return ritorno;
+}
+void AproPorta()
+{
+         Serial.println("Apro la porta in modalità manuale");
+         MyLCD.setCursor(0, 0);
+         MyLCD.print("Apro la porta....");
+         myStepper.setSpeed(15);
+         while (fsensore_porta_up_on()==false)
+            {
+              myStepper.step(300);
+            }
+         Serial.println("Apertura porta completata");
+         MyLCD.clear();
+         MyLCD.setCursor(0, 0);
+         MyLCD.print("Fine Apertura   ");
+         MyLCD.setCursor(0, 1);
+         MyLCD.print("Porta           ");
+         portaAperta=true;
+         digitalWrite(motorPin1,LOW);
+         digitalWrite(motorPin2,LOW);
+         digitalWrite(motorPin3,LOW);
+         digitalWrite(motorPin4,LOW);
+         delay(5000);
+}
+
 void setup() {
   Serial.begin(9600);
   pinMode(sensore_porta_up_on, INPUT);
@@ -125,9 +167,27 @@ void setup() {
   MyLCD.init();
   MyLCD.backlight();
   MyLCD.setCursor(0, 0);
+  
 
 }
 void loop() {
+  //1 test se modalità automatica o manuale tramite domotica 
+  
+	if ( ComandoEsternoManuale() == true)
+     {
+      if (portaAperta == false)
+        {
+         AproPorta();
+        }
+        else
+        {
+          Serial.println("Porta Aperta    ");
+          MyLCD.setCursor(0, 0);
+          MyLCD.clear();
+          MyLCD.print("Porta Aperta    ");
+        }
+	   } 
+
   if (fsensore_porta_up_on() == true)
      {
       Serial.println("Raggiunto fine corsa porta up..........................................................."); 
@@ -140,7 +200,12 @@ void loop() {
 
   if (PresenzaInterna() == true)
      {
-      AccendiLedRossoVol(true);
+      if (portaAperta == false)
+        {
+          //devo aprire la porta
+          AproPorta();
+          AccendiLedRossoVol(true);
+        }
      }
      else
      {
@@ -155,38 +220,11 @@ void loop() {
      {
       SpegniLedBluUltr(true);
      }
-  
-  voltage_tasmota = analogRead(TasmotaAnalogPin) * (3.3 / 1023.0);
-  Serial.println(voltage_tasmota); 
-	if ( voltage_tasmota > 1) {
-	   Serial.println("Tasmota...................."); 
-     while ( voltage_tasmota > 1)  {
-         Serial.println(voltage_tasmota); 
-         Serial.println("avvio il motore stepper");
-         MyLCD.setCursor(0, 0);
-         MyLCD.print("Avvio il motore.....");
-         Stepper myStepper(stepsPerRevolution, motorPin1, motorPin3, motorPin2, motorPin4);
-         myStepper.setSpeed(15);
-         myStepper.step(300);
-         delay(10);
-         voltage_tasmota= analogRead(TasmotaAnalogPin) * (3.3 / 1023.0);
-         Serial.println(voltage_tasmota); 
-     }
-     Serial.println("Spengo il motore stepper");
-     MyLCD.setCursor(0, 0);
-     MyLCD.print("Spengo il motore.....");
-     digitalWrite(motorPin1,LOW);
-     digitalWrite(motorPin2,LOW);
-     digitalWrite(motorPin3,LOW);
-     digitalWrite(motorPin4,LOW);
     
-	} 
-     else
-     {
-      Serial.println("Aspetto................");
-      delay(1000);
-     }
-  } 
+  Serial.println("Aspetto................");
+  delay(1000);
+
+} 
 
 
 
