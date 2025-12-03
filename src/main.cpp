@@ -6,6 +6,7 @@
 #define motorPin2  9      // IN2 
 #define motorPin3  10     // IN3 
 #define motorPin4  11     // IN4 
+#define seconds() (millis()/1000)
 const int stepsPerRevolution = 2048;
 int ledRossoVol = 5;
 int ledBluUltr = 4;
@@ -13,6 +14,10 @@ int TasmotaAnalogPin = A3;
 int sensore_volumetrico = 6;
 int sensore_porta_up_on = 7;
 int sensore_porta_down_on = 12;
+int SecondiAperturaPorta=0;
+int SecondiOra=0;
+int DiffSecondi=0;
+int SecondiDiAperturaDef=10;
 float voltage_tasmota=0;
 const int trigPin = A0; 
 const int echoPin = A1; 
@@ -25,6 +30,7 @@ LiquidCrystal_I2C MyLCD(0x27, 16, 2);
 Stepper myStepper(stepsPerRevolution, motorPin1, motorPin3, motorPin2, motorPin4);
 
 void ScriviLcd(String stampa){
+    MyLCD.clear();
     MyLCD.setCursor(0, 0);
     MyLCD.print(stampa);
 }
@@ -54,7 +60,6 @@ boolean fsensore_porta_up_on()
   if (val == HIGH) {
     risultato=true;
     Serial.println("up porta on......"); 
-    ScriviLcd("Porta up on......");
   }
   return risultato;
 }
@@ -67,7 +72,6 @@ boolean fsensore_porta_down_on()
   if (val == HIGH) {
     risultato=true;
     Serial.println("down porta on..."); 
-    ScriviLcd("Porta down on...");
   }
   return risultato;
 }
@@ -134,27 +138,41 @@ boolean ComandoEsternoManuale()
 }
 void AproPorta()
 {
-         Serial.println("Apro la porta in modalità manuale");
-         MyLCD.setCursor(0, 0);
-         MyLCD.print("Apro la porta....");
+         Serial.println("Apro la porta ");
+         ScriviLcd("Apro la porta");
+         SecondiAperturaPorta=seconds();
          myStepper.setSpeed(15);
          while (fsensore_porta_up_on()==false)
             {
               myStepper.step(300);
             }
          Serial.println("Apertura porta completata");
-         MyLCD.clear();
-         MyLCD.setCursor(0, 0);
-         MyLCD.print("Fine Apertura   ");
-         MyLCD.setCursor(0, 1);
-         MyLCD.print("Porta           ");
+         ScriviLcd("Porta Aperta");
          portaAperta=true;
          digitalWrite(motorPin1,LOW);
          digitalWrite(motorPin2,LOW);
          digitalWrite(motorPin3,LOW);
          digitalWrite(motorPin4,LOW);
-         delay(5000);
 }
+
+void ChiudoPorta()
+{
+         Serial.println("Chiudo la porta ");
+         ScriviLcd("Chiudo la porta....");
+         myStepper.setSpeed(15);
+         while (fsensore_porta_down_on()==false)
+            {
+              myStepper.step(-300);
+            }
+         Serial.println("Chiusura porta completata");
+         ScriviLcd("Porta Chiusa");
+         portaAperta=false;
+         digitalWrite(motorPin1,LOW);
+         digitalWrite(motorPin2,LOW);
+         digitalWrite(motorPin3,LOW);
+         digitalWrite(motorPin4,LOW);
+}
+
 
 void setup() {
   Serial.begin(9600);
@@ -171,7 +189,7 @@ void setup() {
 
 }
 void loop() {
-  //1 test se modalità automatica o manuale tramite domotica 
+  //test se modalità automatica o manuale tramite domotica 
   
 	if ( ComandoEsternoManuale() == true)
      {
@@ -182,21 +200,25 @@ void loop() {
         else
         {
           Serial.println("Porta Aperta    ");
-          MyLCD.setCursor(0, 0);
-          MyLCD.clear();
-          MyLCD.print("Porta Aperta    ");
+          ScriviLcd("Porta Aperta");
         }
 	   } 
 
-  if (fsensore_porta_up_on() == true)
-     {
-      Serial.println("Raggiunto fine corsa porta up..........................................................."); 
-     }
-
-  if (fsensore_porta_down_on() == true)
-     {
-      Serial.println("Raggiunto fine corsa porta down..........................................................."); 
-     }
+  if (portaAperta == true)
+  {
+    SecondiOra=seconds();
+    Serial.print("Porta aperta da ");
+    DiffSecondi=SecondiAperturaPorta - SecondiOra;
+    Serial.print(abs(DiffSecondi));
+    Serial.println(" sec");
+    if (abs(DiffSecondi) > SecondiDiAperturaDef)
+      {
+        //devo chiudere la porta
+        ChiudoPorta();
+        portaAperta=false;
+        ScriviLcd("Porta Chiusa");
+      }
+  }
 
   if (PresenzaInterna() == true)
      {
@@ -212,13 +234,20 @@ void loop() {
       SpegniLedRossoVol(true);
 
      }
+
   if (PresenzaEsterna() == true)
-     {
-      AccendiLedBluUltr(true);
+      {
+      if (portaAperta == false)
+        {
+          //devo aprire la porta
+          AproPorta();
+          AccendiLedBluUltr(true);
+        }
      }
      else
      {
       SpegniLedBluUltr(true);
+
      }
     
   Serial.println("Aspetto................");
