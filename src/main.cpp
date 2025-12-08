@@ -249,8 +249,9 @@ void setup() {
 }
 void loop() {
   //test se modalità automatica o manuale tramite domotica 
-  
-	if ( ComandoEsternoManuale() == true)
+
+
+	if ( (ComandoEsternoManuale() == true) or (digitalRead(bottone) == HIGH) )
      {
       if (portaAperta == true)
         {
@@ -259,6 +260,10 @@ void loop() {
         else
         {
           Serial.println("Porta gia' Chiusa ");
+          if (digitalRead(bottone) == HIGH)
+          {
+            AproPorta();
+          }
         }
 	   } 
 
@@ -302,7 +307,7 @@ void loop() {
       }
   //loop principale e wait  
   Serial.println("Aspetto................");
-  delay(100);
+  //delay(100);
 
 } 
 
