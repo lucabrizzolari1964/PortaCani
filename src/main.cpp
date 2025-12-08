@@ -14,7 +14,7 @@ int TasmotaAnalogPin = A3;
 int sensore_volumetrico = 6;
 int sensore_porta_up_on = 7;
 int sensore_porta_down_on = 12;
-int bottoneFineRegolazione = 4;
+int bottone = 4;
 int SecondiAperturaPorta=0;
 int SecondiOra=0;
 int DiffSecondi=0;
@@ -142,7 +142,7 @@ boolean ComandoEsternoManuale()
   Serial.print("Voltaggio da esp01 "); 
   Serial.println(voltage_tasmota); 
 	if ( voltage_tasmota > 1) {
-	   Serial.println("Arrivato segnale di comando manuale porta aperta");
+	   Serial.println("Arrivato segnale di comando manuale porta chiusa");
      ritorno=true;
   } 
   return ritorno;
@@ -193,6 +193,25 @@ void ChiudoPorta()
 }
 
 
+void ChiudoPortaSubito()
+{
+         Serial.println("Chiudo la porta Subito");
+         ScriviLcd("Chiudo la porta....","Subito");
+         myStepper.setSpeed(15);
+         stopChusura=false;
+         while ( (fsensore_porta_down_on()==false) and (stopChusura ==false) ) 
+            {
+              myStepper.step(-300);
+            }
+         Serial.println("Chiusura porta completata");
+         ScriviLcd("Porta Chiusa","Manualmente");
+         portaAperta=false;
+         digitalWrite(motorPin1,LOW);
+         digitalWrite(motorPin2,LOW);
+         digitalWrite(motorPin3,LOW);
+         digitalWrite(motorPin4,LOW);
+}
+
 void setup() {
   Serial.begin(9600);
   pinMode(sensore_porta_up_on, INPUT);
@@ -217,7 +236,7 @@ void setup() {
      Serial.print("Tempo definito di chiusura porta =");
      Serial.println(SecondiDiAperturaDef);
      ScriviLcd("Se ok push","Tempo = "+String(SecondiDiAperturaDef));
-     fatto=digitalRead(bottoneFineRegolazione);
+     fatto=digitalRead(bottone);
      if (fatto == HIGH)
      {
       fine=true;
@@ -233,14 +252,13 @@ void loop() {
   
 	if ( ComandoEsternoManuale() == true)
      {
-      if (portaAperta == false)
+      if (portaAperta == true)
         {
-         AproPorta();
+         ChiudoPortaSubito();
         }
         else
         {
-          Serial.println("Porta Aperta    ");
-          ScriviLcd("Porta Aperta","");
+          Serial.println("Porta gia' Chiusa ");
         }
 	   } 
 
@@ -264,7 +282,7 @@ void loop() {
       }
   }
 
-  if (PresenzaInterna() == true)
+  if ( (PresenzaInterna() == true) and (ComandoEsternoManuale() != true) )
      {
       if (portaAperta == false)
         {
@@ -273,7 +291,7 @@ void loop() {
         }
      }
 
-  if (PresenzaEsterna() == true)
+  if ( (PresenzaEsterna() == true) and (ComandoEsternoManuale() != true) )
       {
       if (portaAperta == false)
         {
