@@ -8,6 +8,8 @@
 #define motorPin4  11     // IN4 
 #define seconds() (millis()/1000)
 const int stepsPerRevolution = 2048;
+int numerostepmotoreup=0;
+int numerospetmotoredown=0;
 int ledVol = 2;
 int ledUltr = 3;
 int TasmotaAnalogPin = A3;
@@ -27,6 +29,11 @@ long durata;
 float distanza;
 boolean portaAperta=false;
 boolean stopChusura=false;
+boolean comandoesternomanuale=false;
+boolean presenzainterna=false;
+boolean presenzaesterna=false;
+boolean ledvolAcceso=false;
+boolean ledultrAcceso=false;
 //variabile di servizio
 int val =0;
 LiquidCrystal_I2C MyLCD(0x27, 16, 2);
@@ -41,23 +48,40 @@ void ScriviLcd(String stampa, String stampa1){
 
 }
 void AccendiLedVol(boolean fai){
-    digitalWrite(ledVol,HIGH);
-    Serial.println("Accendo led Volumetrico");
+    if (ledvolAcceso==false)
+    {
+      digitalWrite(ledVol,HIGH);
+      ledvolAcceso=true;
+      Serial.println("Accendo led Volumetrico");
+    }
 }
 
 void SpegniLedVol(boolean fai){
-    digitalWrite(ledVol,LOW);
-    Serial.println("Spengo led Volumetrico");
+    if (ledvolAcceso==true)
+    {
+      digitalWrite(ledVol,LOW);
+      ledvolAcceso=false;
+      Serial.println("Spengo led Volumetrico");
+    }
 }
 
 void AccendiLedUltr(boolean fai){
-    digitalWrite(ledUltr,HIGH);
-    Serial.println("Accendo led Ultrasuoni");
+    if (ledultrAcceso==false)
+    {
+      digitalWrite(ledUltr,HIGH);
+      ledultrAcceso=true;
+      Serial.println("Accendo led Ultrasuoni");
+    }
 }
 
 void SpegniLedUltr(boolean fai){
-    digitalWrite(ledUltr,LOW);
-    Serial.println("Spengo led Ultrasuoni");
+    if (ledultrAcceso==true)
+    {
+      digitalWrite(ledUltr,LOW);
+      ledultrAcceso=false;
+      Serial.println("Spengo led Ultrasuoni");
+    }
+    
 }
 boolean fsensore_porta_up_on()
 {
@@ -93,7 +117,7 @@ boolean PresenzaInterna()
   } 
   else
   {
-      Serial.println("Nessuna Presenza Interna"); 
+      //Serial.println("Nessuna Presenza Interna"); 
       SpegniLedVol(true);
       risultato=false;
   } 
@@ -116,9 +140,9 @@ boolean PresenzaEsterna()
   distanza = durata * 0.0343 / 2;
 
   // Print the distance to the serial monitor
-  Serial.print("Distanza: ");
-  Serial.print(distanza);
-  Serial.println(" cm");
+  //Serial.print("Distanza: ");
+  //Serial.print(distanza);
+  //Serial.println(" cm");
   if (distanza < 20)
      {
       presente = true;
@@ -128,7 +152,7 @@ boolean PresenzaEsterna()
      else
      {
       presente = false;
-      Serial.println("Nessuna Presenza Esterna");
+      //Serial.println("Nessuna Presenza Esterna");
       SpegniLedUltr(true);
      }
   return presente;
@@ -139,9 +163,11 @@ boolean ComandoEsternoManuale()
 {
   boolean ritorno=false;
   voltage_tasmota = analogRead(TasmotaAnalogPin) * (3.3 / 1023.0);
-  Serial.print("Voltaggio da esp01 "); 
-  Serial.println(voltage_tasmota); 
+  //Serial.print("Voltaggio da esp01 "); 
+  //Serial.println(voltage_tasmota); 
 	if ( voltage_tasmota > 1) {
+     Serial.print("Voltaggio da esp01 "); 
+     Serial.println(voltage_tasmota); 
 	   Serial.println("Arrivato segnale di comando manuale porta chiusa");
      ritorno=true;
   } 
@@ -151,30 +177,36 @@ void AproPorta()
 {
          Serial.println("Apro la porta ");
          ScriviLcd("Apro la porta", "");
+         numerostepmotoreup=0;
          SecondiAperturaPorta=seconds();
          myStepper.setSpeed(15);
          while (fsensore_porta_up_on()==false)
             {
-              myStepper.step(300);
+              myStepper.step(-100);
+              numerostepmotoreup=numerostepmotoreup+1;
             }
-         Serial.println("Apertura porta completata");
+         
          ScriviLcd("Porta Aperta","");
          portaAperta=true;
          digitalWrite(motorPin1,LOW);
          digitalWrite(motorPin2,LOW);
          digitalWrite(motorPin3,LOW);
          digitalWrite(motorPin4,LOW);
+         Serial.print("Apertura porta completata Numero passi motore=");
+         Serial.println(numerostepmotoreup);
 }
 
 void ChiudoPorta()
 {
          Serial.println("Chiudo la porta ");
          ScriviLcd("Chiudo la porta....","");
+         numerospetmotoredown=0;
          myStepper.setSpeed(15);
          stopChusura=false;
          while ( (fsensore_porta_down_on()==false) and (stopChusura ==false) ) 
             {
-              myStepper.step(-300);
+              myStepper.step(100);
+              numerospetmotoredown=numerospetmotoredown+1;
               //controllo che il cane non si ripresenti vicino
               if ( (PresenzaEsterna() == true) or (PresenzaInterna() ==true) )
                {
@@ -183,13 +215,15 @@ void ChiudoPorta()
                 stopChusura=true;
                }
             }
-         Serial.println("Chiusura porta completata");
          ScriviLcd("Porta Chiusa","");
          portaAperta=false;
          digitalWrite(motorPin1,LOW);
          digitalWrite(motorPin2,LOW);
          digitalWrite(motorPin3,LOW);
          digitalWrite(motorPin4,LOW);
+         Serial.print("Chiusura porta completata Numero passi motore=");
+         Serial.println(numerospetmotoredown);
+
 }
 
 
@@ -201,7 +235,7 @@ void ChiudoPortaSubito()
          stopChusura=false;
          while ( (fsensore_porta_down_on()==false) and (stopChusura ==false) ) 
             {
-              myStepper.step(-300);
+              myStepper.step(100);
             }
          Serial.println("Chiusura porta completata");
          ScriviLcd("Porta Chiusa","Manualmente");
@@ -227,17 +261,18 @@ void setup() {
   delay(5000);
   int val=30;
   int fatto=0;
+  int fattotimeout=0;
   boolean fine=false;
   while (!fine)
   {
      val=analogRead(TempoChiusuraPortaPin);
-     
      SecondiDiAperturaDef=map(val, 0, 1023, 0, 300);
      Serial.print("Tempo definito di chiusura porta =");
      Serial.println(SecondiDiAperturaDef);
      ScriviLcd("Se ok push","Tempo = "+String(SecondiDiAperturaDef));
+     fattotimeout=fattotimeout+1;
      fatto=digitalRead(bottone);
-     if (fatto == HIGH)
+     if (( fatto == HIGH) or (fattotimeout > 10) )
      {
       fine=true;
      }
@@ -248,10 +283,11 @@ void setup() {
 
 }
 void loop() {
+  comandoesternomanuale=ComandoEsternoManuale();
+  presenzainterna=PresenzaInterna();
+  presenzaesterna=PresenzaEsterna();
   //test se modalità automatica o manuale tramite domotica 
-
-
-	if ( (ComandoEsternoManuale() == true) or (digitalRead(bottone) == HIGH) )
+	if ( (comandoesternomanuale == true) or (digitalRead(bottone) == HIGH) )
      {
       if (portaAperta == true)
         {
@@ -267,7 +303,7 @@ void loop() {
         }
 	   } 
 
-  if ( (portaAperta == true) and (ComandoEsternoManuale() != true) )
+  if ( (portaAperta == true) and (comandoesternomanuale != true) )
   {
     val=analogRead(TempoChiusuraPortaPin);
     SecondiDiAperturaDef=map(val, 0, 1023, 0, 300);
@@ -287,7 +323,7 @@ void loop() {
       }
   }
 
-  if ( (PresenzaInterna() == true) and (ComandoEsternoManuale() != true) )
+  if ( (presenzainterna == true) and (comandoesternomanuale != true) )
      {
       if (portaAperta == false)
         {
@@ -296,7 +332,7 @@ void loop() {
         }
      }
 
-  if ( (PresenzaEsterna() == true) and (ComandoEsternoManuale() != true) )
+  if ( (presenzaesterna == true) and (comandoesternomanuale != true) )
       {
       if (portaAperta == false)
         {
@@ -306,8 +342,8 @@ void loop() {
         }
       }
   //loop principale e wait  
-  Serial.println("Aspetto................");
-  //delay(100);
+  Serial.println("Aspetto.....................................................................................");
+  delay(10);
 
 } 
 
