@@ -9,7 +9,7 @@
 #define seconds() (millis()/1000)
 const int stepsPerRevolution = 2048;
 int numerostepmotoreup=0;
-int numerospetmotoredown=0;
+int numerostepmotoredown=0;
 int ledVol = 2;
 int ledUltr = 3;
 int TasmotaAnalogPin = A3;
@@ -21,6 +21,7 @@ int SecondiAperturaPorta=0;
 int SecondiOra=0;
 int DiffSecondi=0;
 int SecondiDiAperturaDef=10;
+int velocitaStepper=1;
 float voltage_tasmota=0;
 const int trigPin = A0; 
 const int echoPin = A1;
@@ -179,15 +180,21 @@ void AproPorta()
          ScriviLcd("Apro la porta", "");
          numerostepmotoreup=0;
          SecondiAperturaPorta=seconds();
-         myStepper.setSpeed(15);
-         while (fsensore_porta_up_on()==false)
+         velocitaStepper=1;
+         myStepper.setSpeed(1);
+         while  (fsensore_porta_up_on()==false) 
             {
-              myStepper.step(-100);
+              myStepper.step(-50);
               numerostepmotoreup=numerostepmotoreup+1;
+              if (velocitaStepper < 15)
+              {
+                velocitaStepper=velocitaStepper+1;
+                myStepper.setSpeed(velocitaStepper);
+              }
             }
-         
          ScriviLcd("Porta Aperta","");
          portaAperta=true;
+         SecondiAperturaPorta=seconds();
          digitalWrite(motorPin1,LOW);
          digitalWrite(motorPin2,LOW);
          digitalWrite(motorPin3,LOW);
@@ -200,17 +207,27 @@ void ChiudoPorta()
 {
          Serial.println("Chiudo la porta ");
          ScriviLcd("Chiudo la porta....","");
-         numerospetmotoredown=0;
-         myStepper.setSpeed(15);
+         numerostepmotoredown=0;
+         velocitaStepper=1;
+         myStepper.setSpeed(velocitaStepper);
          stopChusura=false;
          while ( (fsensore_porta_down_on()==false) and (stopChusura ==false) ) 
             {
               myStepper.step(100);
-              numerospetmotoredown=numerospetmotoredown+1;
+              numerostepmotoredown=numerostepmotoredown+1;
+              if (velocitaStepper < 15)
+              {
+                velocitaStepper=velocitaStepper+1;
+                myStepper.setSpeed(velocitaStepper);
+              }
               //controllo che il cane non si ripresenti vicino
               if ( (PresenzaEsterna() == true) or (PresenzaInterna() ==true) )
                {
+                Serial.print("Chiusura porta completata Numero passi motore=");
+                Serial.println(numerostepmotoredown);
                 AproPorta();
+                Serial.print("Apertura porta completata Numero passi motore=");
+                Serial.println(numerostepmotoreup);
                 //esco dal loop sensore down on
                 stopChusura=true;
                }
@@ -221,8 +238,7 @@ void ChiudoPorta()
          digitalWrite(motorPin2,LOW);
          digitalWrite(motorPin3,LOW);
          digitalWrite(motorPin4,LOW);
-         Serial.print("Chiusura porta completata Numero passi motore=");
-         Serial.println(numerospetmotoredown);
+         
 
 }
 
