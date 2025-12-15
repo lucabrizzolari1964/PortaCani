@@ -22,6 +22,8 @@ int SecondiOra=0;
 int DiffSecondi=0;
 int SecondiDiAperturaDef=10;
 int velocitaStepper=1;
+boolean stopApertura=0;
+int stopAperturaButton=0; //bottone di stopApertura 
 float voltage_tasmota=0;
 const int trigPin = A0; 
 const int echoPin = A1;
@@ -29,7 +31,7 @@ const int TempoChiusuraPortaPin=A2;
 long durata;
 float distanza;
 boolean portaAperta=false;
-boolean stopChusura=false;
+boolean stopChusura=false; //se true deve aprire immediatamente metre chiude
 boolean comandoesternomanuale=false;
 boolean presenzainterna=false;
 boolean presenzaesterna=false;
@@ -46,7 +48,7 @@ void ScriviLcd(String stampa, String stampa1){
     MyLCD.print(stampa);
     MyLCD.setCursor(0, 1);
     MyLCD.print(stampa1);
-
+    
 }
 void AccendiLedVol(boolean fai){
     if (ledvolAcceso==false)
@@ -192,7 +194,7 @@ void AproPorta()
                 myStepper.setSpeed(velocitaStepper);
               }
             }
-         ScriviLcd("Porta Aperta","");
+         ScriviLcd("Porta Aperta","per "+String(SecondiDiAperturaDef)+" sec.");
          portaAperta=true;
          SecondiAperturaPorta=seconds();
          digitalWrite(motorPin1,LOW);
@@ -243,10 +245,10 @@ void ChiudoPorta()
 }
 
 
-void ChiudoPortaSubito()
+void ChiudoPortaManualmente()
 {
-         Serial.println("Chiudo la porta Subito");
-         ScriviLcd("Chiudo la porta....","Subito");
+         Serial.println("Chiudo la porta manualmente");
+         ScriviLcd("Chiudo la porta....","Manualmente");
          myStepper.setSpeed(15);
          stopChusura=false;
          while ( (fsensore_porta_down_on()==false) and (stopChusura ==false) ) 
@@ -267,8 +269,8 @@ void setup() {
   pinMode(sensore_porta_up_on, INPUT);
   pinMode(sensore_volumetrico, INPUT); 
   pinMode(sensore_porta_down_on, INPUT_PULLUP);
-  pinMode(trigPin, OUTPUT); // Trigger pin needs to be an output
-  pinMode(echoPin, INPUT);  // Echo pin needs to be an input
+  pinMode(trigPin, OUTPUT); // Trigger pin 
+  pinMode(echoPin, INPUT);  // Echo pin 
   pinMode(ledVol, OUTPUT);
   pinMode(ledUltr, OUTPUT);
   MyLCD.init();
@@ -285,40 +287,56 @@ void setup() {
      SecondiDiAperturaDef=map(val, 0, 1023, 0, 300);
      Serial.print("Tempo definito di chiusura porta =");
      Serial.println(SecondiDiAperturaDef);
-     ScriviLcd("Se ok push","Tempo = "+String(SecondiDiAperturaDef));
+     ScriviLcd("Se ok premi","Tempo = "+String(SecondiDiAperturaDef));
      fattotimeout=fattotimeout+1;
      fatto=digitalRead(bottone);
-     if (( fatto == HIGH) or (fattotimeout > 10) )
+     if (( fatto == HIGH) or (fattotimeout > 20) )
      {
       fine=true;
      }
      delay(100);
   }
-  delay(1000);
-  ScriviLcd("Porta Panna","sec chiusura:"+String(SecondiDiAperturaDef));
-
+  if (fsensore_porta_up_on() == true)
+  {
+    portaAperta=true;
+  }
+  else
+    {
+      portaAperta=false;
+      AproPorta();
+    }
+   ScriviLcd("Porta Panna","sec chiusura:"+String(SecondiDiAperturaDef));
+   delay(1000);
 }
 void loop() {
   comandoesternomanuale=ComandoEsternoManuale();
   presenzainterna=PresenzaInterna();
   presenzaesterna=PresenzaEsterna();
+  stopAperturaButton=digitalRead(bottone);
+  
   //test se modalità automatica o manuale tramite domotica 
-	if ( (comandoesternomanuale == true) or (digitalRead(bottone) == HIGH) )
+	if ( (comandoesternomanuale == true) or (stopAperturaButton == HIGH) )
      {
       if (portaAperta == true)
         {
-         ChiudoPortaSubito();
+         ChiudoPortaManualmente();
+         stopApertura=true;
         }
         else
         {
           Serial.println("Porta gia' Chiusa ");
-          if (digitalRead(bottone) == HIGH)
+          if (stopAperturaButton == HIGH)
           {
             AproPorta();
+            stopApertura=false;
           }
         }
-	   } 
-
+	   }
+   if ( (comandoesternomanuale == false) or (stopApertura == false) )
+      {
+        stopApertura=false;
+      }
+  
   if ( (portaAperta == true) and (comandoesternomanuale != true) )
   {
     val=analogRead(TempoChiusuraPortaPin);
@@ -326,10 +344,11 @@ void loop() {
     Serial.print("Tempo definito di chiusura porta =");
     Serial.println(SecondiDiAperturaDef);
     SecondiOra=seconds();
-    Serial.print("Porta aperta da ");
+    Serial.print("Porta aperta");
     DiffSecondi=SecondiAperturaPorta - SecondiOra;
     Serial.print(abs(DiffSecondi));
     Serial.println(" sec");
+    ScriviLcd("Porta Aperta ","alla chiusura "+String(SecondiDiAperturaDef - abs(DiffSecondi))+" sec");
     if (abs(DiffSecondi) > SecondiDiAperturaDef)
       {
         //devo chiudere la porta
@@ -339,7 +358,7 @@ void loop() {
       }
   }
 
-  if ( (presenzainterna == true) and (comandoesternomanuale != true) )
+  if ( (presenzainterna == true) and (comandoesternomanuale != true) and (stopApertura == false))
      {
       if (portaAperta == false)
         {
@@ -348,7 +367,7 @@ void loop() {
         }
      }
 
-  if ( (presenzaesterna == true) and (comandoesternomanuale != true) )
+  if ( (presenzaesterna == true) and (comandoesternomanuale != true) and (stopApertura == false))
       {
       if (portaAperta == false)
         {
