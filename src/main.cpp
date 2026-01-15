@@ -136,7 +136,7 @@ boolean PresenzaEsterna()
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
-
+  //
   durata = pulseIn(echoPin, HIGH); // in microsecondi
   // velocità del suono = 343 m/s o 0.0343 cm/µs
   // Distance = (duration * speed of sound) / 2 (because the pulse travels there and back)
