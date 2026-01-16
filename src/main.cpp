@@ -22,6 +22,7 @@ int SecondiOra=0;
 int DiffSecondi=0;
 int SecondiDiAperturaDef=10;
 int velocitaStepper=1;
+int sensore=0; //0 esterno 1 interno
 boolean stopApertura=0;
 int stopAperturaButton=0; //bottone di stopApertura 
 float voltage_tasmota=0;
@@ -146,7 +147,7 @@ boolean PresenzaEsterna()
   //Serial.print("Distanza: ");
   //Serial.print(distanza);
   //Serial.println(" cm");
-  if (distanza < 20)
+  if (distanza < 15)
      {
       presente = true;
       Serial.println("Presenza Esterna ....");
@@ -176,10 +177,20 @@ boolean ComandoEsternoManuale()
   } 
   return ritorno;
 }
-void AproPorta()
+void AproPorta(int sensore)
 {
-         Serial.println("Apro la porta ");
-         ScriviLcd("Apro la porta", "");
+         Serial.println("Apro la porta "); 
+         switch (sensore) {
+            case 0:
+            ScriviLcd("Apro la porta", "Sensore Esterno");
+            break;
+            case 1:
+            ScriviLcd("Apro la porta", "Sensore Interno");
+            break;
+            case 2:
+            ScriviLcd("Apro la porta", "");
+            break;
+         }
          numerostepmotoreup=0;
          velocitaStepper=1;
          myStepper.setSpeed(1);
@@ -226,7 +237,7 @@ void ChiudoPorta()
               if ( (PresenzaEsterna() == true) or (PresenzaInterna() ==true) )
                {
                 Serial.println("ChiudoPorta:Chiusura porta fermata");
-                AproPorta();
+                AproPorta(2);
                 Serial.println("ChiudoPorta:Apertura porta complettata mentre chiudevo");
                 stopChiusura=true;
                }
@@ -311,7 +322,7 @@ void setup() {
   else
     {
       portaAperta=false;
-      AproPorta();
+      AproPorta(2);
     }
    ScriviLcd("Porta Panna","sec chiusura:"+String(SecondiDiAperturaDef));
    delay(1000);
@@ -335,7 +346,7 @@ void loop() {
           Serial.println("Porta gia' Chiusa ");
           if (stopAperturaButton == HIGH)
           {
-            AproPorta();
+            AproPorta(2);
             stopApertura=false;
           }
         }
@@ -369,7 +380,7 @@ void loop() {
       if (portaAperta == false)
         {
           //devo aprire la porta
-          AproPorta();
+          AproPorta(1);
         }
      }
 
@@ -379,7 +390,7 @@ void loop() {
         {
           //devo aprire la porta
           AccendiLedUltr(true); 
-          AproPorta(); 
+          AproPorta(0); 
         }
       }
   //loop principale e wait  
