@@ -378,8 +378,8 @@ void loop() {
       if (portaAperta == false)
         {
           //devo aprire la porta
-          AccendiLedUltr(true);
-          AproPorta();
+          AccendiLedUltr(true); 
+          AproPorta(); 
         }
       }
   //loop principale e wait  
