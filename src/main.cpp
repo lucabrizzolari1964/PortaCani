@@ -31,7 +31,7 @@ const int TempoChiusuraPortaPin=A2;
 long durata;
 float distanza;
 boolean portaAperta=false;
-boolean stopChusura=false; //se true deve aprire immediatamente metre chiude
+boolean stopChiusura=false; //se true deve aprire immediatamente mentre chiude
 boolean comandoesternomanuale=false;
 boolean presenzainterna=false;
 boolean presenzaesterna=false;
@@ -181,7 +181,6 @@ void AproPorta()
          Serial.println("Apro la porta ");
          ScriviLcd("Apro la porta", "");
          numerostepmotoreup=0;
-         SecondiAperturaPorta=seconds();
          velocitaStepper=1;
          myStepper.setSpeed(1);
          while  (fsensore_porta_up_on()==false) 
@@ -194,27 +193,28 @@ void AproPorta()
                 myStepper.setSpeed(velocitaStepper);
               }
             }
-         ScriviLcd("Porta Aperta","per "+String(SecondiDiAperturaDef)+" sec.");
+         ScriviLcd("Porta Aperta ","per "+String(SecondiDiAperturaDef)+" sec.");
          portaAperta=true;
          SecondiAperturaPorta=seconds();
          digitalWrite(motorPin1,LOW);
          digitalWrite(motorPin2,LOW);
          digitalWrite(motorPin3,LOW);
          digitalWrite(motorPin4,LOW);
-         Serial.print("Apertura porta completata Numero passi motore=");
-         Serial.println(numerostepmotoreup);
 }
 
 void ChiudoPorta()
 {
-         Serial.println("Chiudo la porta ");
+         Serial.println("ChiudoPorta:Chiudo la porta ");
          ScriviLcd("Chiudo la porta....","");
          numerostepmotoredown=0;
          velocitaStepper=1;
          myStepper.setSpeed(velocitaStepper);
-         stopChusura=false;
-         while ( (fsensore_porta_down_on()==false) and (stopChusura ==false) ) 
+         stopChiusura=false;
+         portaAperta=false;
+
+         while ( (fsensore_porta_down_on()==false) and (stopChiusura == false) ) 
             {
+              Serial.println("ChiudoPorta:Entro nel while ChiuduPorta");
               myStepper.step(100);
               numerostepmotoredown=numerostepmotoredown+1;
               if (velocitaStepper < 15)
@@ -225,17 +225,25 @@ void ChiudoPorta()
               //controllo che il cane non si ripresenti vicino
               if ( (PresenzaEsterna() == true) or (PresenzaInterna() ==true) )
                {
-                Serial.print("Chiusura porta completata Numero passi motore=");
-                Serial.println(numerostepmotoredown);
+                Serial.println("ChiudoPorta:Chiusura porta fermata");
                 AproPorta();
-                Serial.print("Apertura porta completata Numero passi motore=");
-                Serial.println(numerostepmotoreup);
-                //esco dal loop sensore down on
-                stopChusura=true;
+                Serial.println("ChiudoPorta:Apertura porta complettata mentre chiudevo");
+                stopChiusura=true;
                }
+              
             }
-         ScriviLcd("Porta Chiusa","");
-         portaAperta=false;
+         Serial.print("ChiudoPorta:portaAperta = ");
+         Serial.println(portaAperta);
+         if (portaAperta == true)
+           {
+            Serial.println("ChiudoPorta:porta Aperta ");
+            ScriviLcd("Porta Aperta","");
+           }
+           else
+           {
+            Serial.println("ChiudoPorta:porta Chiusa ");
+            ScriviLcd("Porta Chiusa","");
+           }
          digitalWrite(motorPin1,LOW);
          digitalWrite(motorPin2,LOW);
          digitalWrite(motorPin3,LOW);
@@ -250,8 +258,8 @@ void ChiudoPortaManualmente()
          Serial.println("Chiudo la porta manualmente");
          ScriviLcd("Chiudo la porta....","Manualmente");
          myStepper.setSpeed(15);
-         stopChusura=false;
-         while ( (fsensore_porta_down_on()==false) and (stopChusura ==false) ) 
+         stopChiusura=false;
+         while ( (fsensore_porta_down_on()==false) and (stopChiusura == false) ) 
             {
               myStepper.step(100);
             }
@@ -344,17 +352,15 @@ void loop() {
     Serial.print("Tempo definito di chiusura porta =");
     Serial.println(SecondiDiAperturaDef);
     SecondiOra=seconds();
-    Serial.print("Porta aperta");
+    Serial.print("Porta aperta da ");
     DiffSecondi=SecondiAperturaPorta - SecondiOra;
     Serial.print(abs(DiffSecondi));
-    Serial.println(" sec");
+    Serial.println(" sec .....");
     ScriviLcd("Porta Aperta ","alla chiusura "+String(SecondiDiAperturaDef - abs(DiffSecondi))+" sec");
     if (abs(DiffSecondi) > SecondiDiAperturaDef)
       {
         //devo chiudere la porta
         ChiudoPorta();
-        portaAperta=false;
-        ScriviLcd("Porta Chiusa","");
       }
   }
 
@@ -378,7 +384,7 @@ void loop() {
       }
   //loop principale e wait  
   Serial.println("Aspetto.....................................................................................");
-  delay(10);
+  delay(50);
 
 } 
 
